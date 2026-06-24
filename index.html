@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Agriculture System</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; }
+        button { background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; margin-top: 10px; }
+        button:hover { background-color: #45a049; }
+        .result { margin-top: 15px; padding: 10px; background-color: #e7f3fe; border-left: 6px solid #2196F3; font-weight: bold; }
+        pre { background: #eee; padding: 10px; border-radius: 4px; white-space: pre-wrap; }
+        hr { margin: 30px 0; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌾 Smart Agriculture System</h1>
+
+        <h2>1. Crop Recommendation</h2>
+        <div class="form-group"><label>Nitrogen (N):</label><input type="number" id="n" value="90"></div>
+        <div class="form-group"><label>Phosphorus (P):</label><input type="number" id="p" value="42"></div>
+        <div class="form-group"><label>Potassium (K):</label><input type="number" id="k" value="43"></div>
+        <div class="form-group"><label>Temperature (°C):</label><input type="number" id="temp" value="20.8" step="0.1"></div>
+        <div class="form-group"><label>Humidity (%):</label><input type="number" id="humidity" value="82"></div>
+        <div class="form-group"><label>pH:</label><input type="number" id="ph" value="6.5" step="0.1"></div>
+        <div class="form-group"><label>Rainfall (mm):</label><input type="number" id="rainfall" value="202.9" step="0.1"></div>
+        <button onclick="predictCrop()">Get Recommended Crop</button>
+        <div id="result1" class="result"></div>
+        <hr>
+
+        <h2>2. Yield Prediction</h2>
+        <div class="form-group"><label>State:</label>
+            <select id="state">
+                <option>Andhra Pradesh</option>
+                <option>Telangana</option>
+                <option>Karnataka</option>
+                <option>Tamil Nadu</option>
+                <option>Maharashtra</option>
+            </select>
+        </div>
+        <div class="form-group"><label>Crop Name:</label><input type="text" id="crop" value="Rice" placeholder="Ex: Rice, Wheat, Cotton"></div>
+        <div class="form-group"><label>Season:</label>
+            <select id="season">
+                <option>Kharif</option>
+                <option>Rabi</option>
+                <option>Whole Year</option>
+                <option>Summer</option>
+            </select>
+        </div>
+        <div class="form-group"><label>Area (hectares):</label><input type="number" id="area" value="100"></div>
+        <div class="form-group"><label>Annual Rainfall (mm):</label><input type="number" id="annual_rainfall" value="1200"></div>
+        <div class="form-group"><label>Fertilizer (kg):</label><input type="number" id="fertilizer" value="50000"></div>
+        <div class="form-group"><label>Pesticide (kg):</label><input type="number" id="pesticide" value="2000"></div>
+        <button onclick="predictYield()">Predict Yield</button>
+        <div id="result2" class="result"></div>
+        <hr>
+
+        <h2>3. Previous Predictions History</h2>
+        <button onclick="loadHistory()">Load History</button>
+        <div id="result3" class="result"></div>
+    </div>
+
+<script>
+    const API_URL = 'http://localhost:8000';
+
+    async function predictCrop() {
+        const data = {
+            N: parseFloat(document.getElementById('n').value),
+            P: parseFloat(document.getElementById('p').value),
+            K: parseFloat(document.getElementById('k').value),
+            temperature: parseFloat(document.getElementById('temp').value),
+            humidity: parseFloat(document.getElementById('humidity').value),
+            ph: parseFloat(document.getElementById('ph').value),
+            rainfall: parseFloat(document.getElementById('rainfall').value)
+        };
+        document.getElementById('result1').innerText = "Loading...";
+        try {
+            const response = await fetch(`${API_URL}/recommend-crop`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            document.getElementById('result1').innerText = "Recommended Crop: " + result.recommended_crop;
+        } catch (error) {
+            document.getElementById('result1').innerText = "Error: " + error.message;
+        }
+    }
+
+    // *** NOT FOUND FIX CHESINA FUNCTION IDI ***
+    async function predictYield() {
+        const data = {
+            State: document.getElementById('state').value,
+            Crop: document.getElementById('crop').value,
+            Season: document.getElementById('season').value,
+            Area: parseFloat(document.getElementById('area').value),
+            Annual_Rainfall: parseFloat(document.getElementById('annual_rainfall').value),
+            Fertilizer: parseFloat(document.getElementById('fertilizer').value),
+            Pesticide: parseFloat(document.getElementById('pesticide').value)
+        };
+        console.log("Sending:", data);
+        document.getElementById('result2').innerText = "Loading...";
+        try {
+            const response = await fetch(`${API_URL}/predict-yield`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.log("Backend Error:", errorData.detail);
+                throw new Error(errorData.detail || `Server Error: ${response.status}`);
+            }
+            const result = await response.json();
+            // *** KEY FIX: backend 'predicted_yield' ane pampistundi ***
+            document.getElementById('result2').innerText = "Predicted Yield: " + result.predicted_yield + " ton/hectare";
+        } catch (error) {
+            document.getElementById('result2').innerText = "Error: " + error.message;
+        }
+    }
+
+    async function loadHistory() {
+        document.getElementById('result3').innerText = "Loading...";
+        try {
+            const response = await fetch(`${API_URL}/history`);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            document.getElementById('result3').innerHTML = "<pre>" + JSON.stringify(result, null, 2) + "</pre>";
+        } catch (error) {
+            document.getElementById('result3').innerText = "Error: " + error.message;
+        }
+    }
+</script>
+</body>
+</html>
