@@ -17,19 +17,22 @@ crop_encoder = None
 season_encoder = None
 state_encoder = None
 
+# --- Global Variable for Latest Sensor Data ---
+latest_sensor_data = {}
+
 # --- DB Init ---
 def init_db():
     conn = sqlite3.connect('crop_data.db')
     cursor = conn.cursor()
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS predictions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT,
-        N REAL, P REAL, K REAL,
-        temperature REAL, humidity REAL, ph REAL, rainfall REAL,
-        state TEXT, season TEXT,
-        recommended_crop TEXT, predicted_yield REAL
-    )
+        CREATE TABLE IF NOT EXISTS predictions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT,
+            N REAL, P REAL, K REAL,
+            temperature REAL, humidity REAL, ph REAL, rainfall REAL,
+            state TEXT, season TEXT,
+            recommended_crop TEXT, predicted_yield REAL
+        )
     ''')
     conn.commit()
     conn.close()
@@ -106,6 +109,16 @@ class SimulationInput(BaseModel):
     current_yield: float
     plant_height: float
 
+# --- NEW: ESP32 Data Model ---
+class SensorData(BaseModel):
+    temperature: float
+    humidity: float
+    pH: float
+    soilMoisture: int
+    turbidity: float
+    rainValue: int
+    waterFlow: float
+
 # --- API Routes ---
 @app.post("/recommend-crop", tags=["Crop Recommendation"])
 def recommend_crop(data: CropInput):
@@ -118,24 +131,22 @@ def recommend_crop(data: CropInput):
         ], dtype=float).reshape(1, -1)
         prediction = crop_model.predict(features)
         crop_name = label_encoder.inverse_transform(prediction)[0]
-
         try:
             conn = sqlite3.connect('crop_data.db')
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO predictions
-                (timestamp, N, P, K, temperature, humidity, ph, rainfall, recommended_crop)
+                INSERT INTO predictions (timestamp, N, P, K, temperature, humidity, ph, rainfall, recommended_crop)
                 VALUES (?,?,?,?,?,?,?,?,?)
             ''', (
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                data.N, data.P, data.K, data.temperature, data.humidity, data.ph, data.rainfall,
+                data.N, data.P, data.K,
+                data.temperature, data.humidity, data.ph, data.rainfall,
                 crop_name
             ))
             conn.commit()
             conn.close()
         except Exception as db_error:
             print(f"DB Error: {db_error}")
-
         return {"status": "success", "recommended_crop": crop_name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Crop prediction failed: {str(e)}")
@@ -148,21 +159,16 @@ def predict_yield(data: YieldInput):
         state = state_encoder.transform([data.State.strip().title()])[0]
         season = season_encoder.transform([data.Season.strip().upper()])[0]
         crop = crop_encoder.transform([data.Crop.strip().capitalize()])[0]
-
         features = np.array([
             state, season, crop,
-            data.Area, data.Annual_Rainfall,
-            data.Fertilizer, data.Pesticide
+            data.Area, data.Annual_Rainfall, data.Fertilizer, data.Pesticide
         ], dtype=float).reshape(1, -1)
-
         yield_pred = yield_model.predict(features)[0]
-
         try:
             conn = sqlite3.connect('crop_data.db')
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO predictions
-                (timestamp, state, season, recommended_crop, predicted_yield)
+                INSERT INTO predictions (timestamp, state, season, recommended_crop, predicted_yield)
                 VALUES (?,?,?,?,?)
             ''', (
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -173,7 +179,6 @@ def predict_yield(data: YieldInput):
             conn.close()
         except Exception as db_error:
             print(f"Yield DB Error: {db_error}")
-
         return {
             "status": "success",
             "predicted_yield": round(float(yield_pred), 2),
@@ -187,12 +192,24 @@ def predict_yield(data: YieldInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Yield prediction failed: {str(e)}")
 
+# --- NEW: ESP32 Routes ---
+@app.post("/api/sensor-data")
+async def receive_sensor_data(data: SensorData):
+    global latest_sensor_data
+    latest_sensor_data = data.dict()
+    print("ESP32 nundi vachina data:", latest_sensor_data)
+    return {"message": "Data received", "status": 200}
+
+@app.get("/api/get-data")
+async def get_latest_data():
+    return latest_sensor_data
+
 # --- HTML Routes ---
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     return templates.TemplateResponse(
-        request=request,  # ← request ni first parameter lo pettu
-        name="index.html"  # ← name ani mention chey
+        request=request,
+        name="index.html"
     )
 
 @app.get("/twin", response_class=HTMLResponse)
