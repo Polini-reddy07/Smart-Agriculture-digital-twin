@@ -5,173 +5,313 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Agriculture System</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        h1, h2 { color: #333; text-align: center; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; }
-        button,.btn { background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; margin-top: 10px; display: block; text-align: center; text-decoration: none; }
-        button:hover,.btn:hover { background-color: #45a049; }
-        .result { margin-top: 15px; padding: 10px; background-color: #e7f3fe; border-left: 6px solid #2196F3; font-weight: bold; }
-        pre { background: #eee; padding: 10px; border-radius: 4px; white-space: pre-wrap; }
-        hr { margin: 30px 0; border: 1px solid #ddd; }
-        
-        /* NEW: Live Data Cards */
-        .sensor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin: 20px 0; }
-        .sensor-card { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid #4CAF50; }
-        .sensor-card h3 { margin: 0 0 10px 0; color: #2e7d32; font-size: 14px; }
-        .sensor-card p { margin: 0; font-size: 24px; font-weight: bold; color: #1b5e20; }
-        .status-live { color: #27ae60; font-size: 12px; }
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background-color: #f4f4f4; 
+        }
+        .container { 
+            max-width: 900px; 
+            margin: auto; 
+            background: white; 
+            padding: 25px; 
+            border-radius: 8px; 
+            box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+        }
+        h1, h2 { 
+            color: #333; 
+            text-align: center; 
+            margin-top: 0;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .form-group { 
+            margin-bottom: 0; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 5px; 
+            font-weight: bold; 
+            font-size: 14px;
+        }
+        input, select { 
+            width: 100%; 
+            padding: 8px; 
+            box-sizing: border-box; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+        }
+        button, .btn { 
+            background-color: #4CAF50; 
+            color: white; 
+            padding: 12px 15px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            width: 100%; 
+            font-size: 16px; 
+            margin-top: 10px; 
+            display: block; 
+            text-align: center; 
+            text-decoration: none; 
+        }
+        button:hover, .btn:hover { 
+            background-color: #45a049; 
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .result { 
+            margin-top: 15px; 
+            padding: 12px; 
+            background-color: #e7f3fe; 
+            border-left: 6px solid #2196F3; 
+            font-weight: bold; 
+            min-height: 20px;
+        }
+        .error {
+            color: #d32f2f;
+            background-color: #ffebee;
+            border-left: 6px solid #f44336;
+        }
+        hr { 
+            margin: 35px 0; 
+            border: 1px solid #ddd; 
+        }
+        .sensor-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); 
+            gap: 15px; 
+            margin: 20px 0; 
+        }
+        .sensor-card { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 8px; 
+            text-align: center; 
+            border: 2px solid #4CAF50; 
+        }
+        .sensor-card h3 { 
+            margin: 0 0 10px 0; 
+            color: #2e7d32; 
+            font-size: 13px; 
+        }
+        .sensor-card p { 
+            margin: 0; 
+            font-size: 22px; 
+            font-weight: bold; 
+            color: #1b5e20; 
+        }
+        .status-live { 
+            color: #27ae60; 
+            font-size: 12px; 
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+            font-size: 14px;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🌾 Smart Agriculture System</h1>
         
-        <!-- NEW: Live Sensor Data Section -->
+        <!-- Live Sensor Data Section -->
         <h2>📡 Live Sensor Data <span class="status-live">● LIVE</span></h2>
         <div class="sensor-grid">
-            <div class="sensor-card">
-                <h3>🌡️ Temperature</h3>
-                <p id="temp-value">-- °C</p>
-            </div>
-            <div class="sensor-card">
-                <h3>💧 Humidity</h3>
-                <p id="humidity-value">-- %</p>
-            </div>
-            <div class="sensor-card">
-                <h3>🧪 pH Value</h3>
-                <p id="ph-value">--</p>
-            </div>
-            <div class="sensor-card">
-                <h3>🌱 Soil Moisture</h3>
-                <p id="soil-value">-- %</p>
-            </div>
-            <div class="sensor-card">
-                <h3>🌊 Turbidity</h3>
-                <p id="turbidity-value">-- NTU</p>
-            </div>
-            <div class="sensor-card">
-                <h3>🌧️ Rain Value</h3>
-                <p id="rain-value">--</p>
-            </div>
-            <div class="sensor-card">
-                <h3>🚰 Water Flow</h3>
-                <p id="flow-value">-- L/min</p>
-            </div>
+            <div class="sensor-card"><h3>🌡️ Temperature</h3><p id="temp-value">-- °C</p></div>
+            <div class="sensor-card"><h3>💧 Humidity</h3><p id="humidity-value">-- %</p></div>
+            <div class="sensor-card"><h3>🧪 pH Value</h3><p id="ph-value">--</p></div>
+            <div class="sensor-card"><h3>🌱 Soil Moisture</h3><p id="soil-value">-- %</p></div>
+            <div class="sensor-card"><h3>🌊 Turbidity</h3><p id="turbidity-value">-- NTU</p></div>
+            <div class="sensor-card"><h3>🌧️ Rain Value</h3><p id="rain-value">--</p></div>
+            <div class="sensor-card"><h3>🚰 Water Flow</h3><p id="flow-value">-- L/min</p></div>
+        </div>
         <hr>
         
+        <!-- 1. Crop Recommendation -->
         <h2>1. Crop Recommendation</h2>
-        <div class="form-group"><label>Nitrogen (N):</label><input type="number" id="n" value="90"></div>
-        <div class="form-group"><label>Phosphorus (P):</label><input type="number" id="p" value="42"></div>
-        <div class="form-group"><label>Potassium (K):</label><input type="number" id="k" value="43"></div>
-        <div class="form-group"><label>Temperature (°C):</label><input type="number" id="temp" value="20.8" step="0.1"></div>
-        <div class="form-group"><label>Humidity (%):</label><input type="number" id="humidity" value="82"></div>
-        <div class="form-group"><label>pH:</label><input type="number" id="ph" value="6.5" step="0.1"></div>
-        <div class="form-group"><label>Rainfall (mm):</label><input type="number" id="rainfall" value="202.9" step="0.1"></div>
-        <button onclick="predictCrop()">Get Recommended Crop</button>
+        <div class="form-grid">
+            <div class="form-group"><label>Nitrogen (N):</label><input type="number" id="n" value="90"></div>
+            <div class="form-group"><label>Phosphorus (P):</label><input type="number" id="p" value="42"></div>
+            <div class="form-group"><label>Potassium (K):</label><input type="number" id="k" value="43"></div>
+            <div class="form-group"><label>Temperature (°C):</label><input type="number" id="temp" value="20.8" step="0.1"></div>
+            <div class="form-group"><label>Humidity (%):</label><input type="number" id="humidity" value="82"></div>
+            <div class="form-group"><label>pH:</label><input type="number" id="ph" value="6.5" step="0.1"></div>
+            <div class="form-group"><label>Rainfall (mm):</label><input type="number" id="rainfall" value="202.9" step="0.1"></div>
+        </div>
+        <button onclick="predictCrop()" id="cropBtn">Get Recommended Crop</button>
         <div id="result1" class="result"></div>
+        
         <hr>
         
+        <!-- 2. Yield Prediction -->
         <h2>2. Yield Prediction</h2>
-        <div class="form-group"><label>State:</label>
-            <select id="state">
-                <option>Andhra Pradesh</option>
-                <option>Telangana</option>
-                <option>Karnataka</option>
-                <option>Tamil Nadu</option>
-                <option>Maharashtra</option>
-            </select>
+        <div class="form-grid">
+            <div class="form-group"><label>State:</label>
+                <select id="state">
+                    <option>Andhra Pradesh</option><option>Telangana</option><option>Karnataka</option>
+                    <option>Tamil Nadu</option><option>Maharashtra</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Crop Name:</label><input type="text" id="crop" value="Rice"></div>
+            <div class="form-group"><label>Season:</label>
+                <select id="season">
+                    <option>Kharif</option><option>Rabi</option><option>Whole Year</option><option>Summer</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Area (hectares):</label><input type="number" id="area" value="100"></div>
+            <div class="form-group"><label>Annual Rainfall (mm):</label><input type="number" id="annual_rainfall" value="1200"></div>
+            <div class="form-group"><label>Fertilizer (kg):</label><input type="number" id="fertilizer" value="50000"></div>
+            <div class="form-group"><label>Pesticide (kg):</label><input type="number" id="pesticide" value="2000"></div>
         </div>
-        <div class="form-group"><label>Crop Name:</label><input type="text" id="crop" value="Rice" placeholder="Ex: Rice, Wheat, Cotton"></div>
-        <div class="form-group"><label>Season:</label>
-            <select id="season">
-                <option>Kharif</option>
-                <option>Rabi</option>
-                <option>Whole Year</option>
-                <option>Summer</option>
-            </select>
-        </div>
-        <div class="form-group"><label>Area (hectares):</label><input type="number" id="area" value="100"></div>
-        <div class="form-group"><label>Annual Rainfall (mm):</label><input type="number" id="annual_rainfall" value="1200"></div>
-        <div class="form-group"><label>Fertilizer (kg):</label><input type="number" id="fertilizer" value="50000"></div>
-        <div class="form-group"><label>Pesticide (kg):</label><input type="number" id="pesticide" value="2000"></div>
-        <button onclick="predictYield()">Predict Yield</button>
+        <button onclick="predictYield()" id="yieldBtn">Predict Yield</button>
         <div id="result2" class="result"></div>
         
         <div id="twin-button-div" style="margin-top:20px; text-align:center;">
-            <a href="/twin" target="_blank" style="background:#9c27b0; color:white; padding:15px 30px; text-decoration:none; border-radius:8px; font-size:18px; font-weight:bold;">
-                View Digital Twin 🚀
-            </a>
+            <a href="/twin" target="_blank" class="btn" style="background:#9c27b0;">View Digital Twin 🚀</a>
             <p style="color:#666; margin-top:10px;">3D lo mee crop twin chudandi</p>
         </div>
+        
         <hr>
         
+        <!-- 3. History -->
         <h2>3. Previous Predictions History</h2>
         <button onclick="loadHistory()">Load History</button>
-        <div id="result3" class="result"></div>
+        <table id="historyTable">
+            <thead>
+                <tr><th>Date</th><th>N</th><th>P</th><th>K</th><th>Crop</th><th>Yield</th></tr>
+            </thead>
+            <tbody id="historyBody"><tr><td colspan="6">Click Load History</td></tr></tbody>
+        </table>
     </div>
-    
+
     <script>
         const API_URL = '';
         
-        // NEW: Live Data Fetching - Prati 3 sec ki update
+        // Live Data Fetching
         async function fetchLiveData() {
             try {
                 const response = await fetch('/api/get-data');
                 const data = await response.json();
-                
-                document.getElementById('temp-value').innerText = data.temperature + ' °C';
-                document.getElementById('humidity-value').innerText = data.humidity + ' %';
-                document.getElementById('ph-value').innerText = data.pH;
-                document.getElementById('soil-value').innerText = data.soilMoisture + ' %';
-                document.getElementById('turbidity-value').innerText = data.turbidity + ' NTU';
-                document.getElementById('rain-value').innerText = data.rainValue;
-                document.getElementById('flow-value').innerText = data.waterFlow + ' L/min';
-                
+                document.getElementById('temp-value').innerText = (data.temperature ?? '--') + ' °C';
+                document.getElementById('humidity-value').innerText = (data.humidity ?? '--') + ' %';
+                document.getElementById('ph-value').innerText = data.pH ?? '--';
+                document.getElementById('soil-value').innerText = (data.soilMoisture ?? '--') + ' %';
+                document.getElementById('turbidity-value').innerText = (data.turbidity ?? '--') + ' NTU';
+                document.getElementById('rain-value').innerText = data.rainValue ?? '--';
+                document.getElementById('flow-value').innerText = (data.waterFlow ?? '--') + ' L/min';
             } catch (error) {
                 console.log('Data fetch error:', error);
             }
         }
-        
-        // Page load avvagane data fetch chey, tarvata 3 sec ki okasari
         fetchLiveData();
         setInterval(fetchLiveData, 3000);
         
         async function predictCrop() {
-            const data = { N: parseFloat(document.getElementById('n').value), P: parseFloat(document.getElementById('p').value), K: parseFloat(document.getElementById('k').value), temperature: parseFloat(document.getElementById('temp').value), humidity: parseFloat(document.getElementById('humidity').value), ph: parseFloat(document.getElementById('ph').value), rainfall: parseFloat(document.getElementById('rainfall').value) };
-            document.getElementById('result1').innerText = "Loading...";
+            const btn = document.getElementById('cropBtn');
+            btn.innerText = 'Loading...';
+            btn.disabled = true;
+            const data = {
+                N: parseFloat(document.getElementById('n').value),
+                P: parseFloat(document.getElementById('p').value),
+                K: parseFloat(document.getElementById('k').value),
+                temperature: parseFloat(document.getElementById('temp').value),
+                humidity: parseFloat(document.getElementById('humidity').value),
+                ph: parseFloat(document.getElementById('ph').value),
+                rainfall: parseFloat(document.getElementById('rainfall').value)
+            };
             try {
-                const response = await fetch(`${API_URL}/recommend-crop`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const response = await fetch(`/recommend-crop`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
                 const result = await response.json();
-                document.getElementById('result1').innerText = "Recommended Crop: " + result.recommended_crop;
-            } catch (error) { document.getElementById('result1').innerText = "Error: " + error.message; }
+                if (!response.ok) throw new Error(result.detail);
+                document.getElementById('result1').innerHTML = "Recommended Crop: <b>" + result.recommended_crop + "</b>";
+                document.getElementById('result1').className = "result";
+            } catch (error) {
+                document.getElementById('result1').innerText = "Error: " + error.message;
+                document.getElementById('result1').className = "result error";
+            } finally {
+                btn.innerText = 'Get Recommended Crop';
+                btn.disabled = false;
+            }
         }
         
         async function predictYield() {
-            const data = { State: document.getElementById('state').value, Crop: document.getElementById('crop').value, Season: document.getElementById('season').value, Area: parseFloat(document.getElementById('area').value), Annual_Rainfall: parseFloat(document.getElementById('annual_rainfall').value), Fertilizer: parseFloat(document.getElementById('fertilizer').value), Pesticide: parseFloat(document.getElementById('pesticide').value) };
-            console.log("Sending:", data);
-            document.getElementById('result2').innerText = "Loading...";
+            const btn = document.getElementById('yieldBtn');
+            btn.innerText = 'Loading...';
+            btn.disabled = true;
+            const data = {
+                State: document.getElementById('state').value,
+                Crop: document.getElementById('crop').value,
+                Season: document.getElementById('season').value,
+                Area: parseFloat(document.getElementById('area').value),
+                Annual_Rainfall: parseFloat(document.getElementById('annual_rainfall').value),
+                Fertilizer: parseFloat(document.getElementById('fertilizer').value),
+                Pesticide: parseFloat(document.getElementById('pesticide').value)
+            };
             try {
-                const response = await fetch(`${API_URL}/predict-yield`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-                if (!response.ok) { const errorData = await response.json(); console.log("Backend Error:", errorData.detail); throw new Error(errorData.detail || `Server Error: ${response.status}`); }
+                const response = await fetch(`/predict-yield`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
                 const result = await response.json();
-                document.getElementById('result2').innerText = "Predicted Yield: " + result.predicted_yield + " ton/hectare";
-                localStorage.setItem('lastYield', JSON.stringify(data));
-                localStorage.setItem('lastResult', result.predicted_yield);
-            } catch (error) { document.getElementById('result2').innerText = "Error: " + error.message; }
+                if (!response.ok) throw new Error(result.detail);
+                document.getElementById('result2').innerHTML = "Predicted Yield: <b>" + result.predicted_yield + " ton/hectare</b>";
+                document.getElementById('result2').className = "result";
+            } catch (error) {
+                document.getElementById('result2').innerText = "Error: " + error.message;
+                document.getElementById('result2').className = "result error";
+            } finally {
+                btn.innerText = 'Predict Yield';
+                btn.disabled = false;
+            }
         }
         
         async function loadHistory() {
-            document.getElementById('result3').innerText = "Loading...";
             try {
-                const response = await fetch(`${API_URL}/history`);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const result = await response.json();
-                document.getElementById('result3').innerHTML = "<pre>" + JSON.stringify(result, null, 2) + "</pre>";
-            } catch (error) { document.getElementById('result3').innerText = "Error: " + error.message; }
+                const response = await fetch(`/history`);
+                const data = await response.json();
+                let rows = '';
+                if (data.length === 0) {
+                    rows = '<tr><td colspan="6">No history found</td></tr>';
+                } else {
+                    data.forEach(item => {
+                        rows += `<tr>
+                            <td>${item.timestamp || '--'}</td>
+                            <td>${item.N || '--'}</td>
+                            <td>${item.P || '--'}</td>
+                            <td>${item.K || '--'}</td>
+                            <td>${item.recommended_crop || '--'}</td>
+                            <td>${item.predicted_yield || '--'}</td>
+                        </tr>`;
+                    });
+                }
+                document.getElementById('historyBody').innerHTML = rows;
+            } catch (error) {
+                document.getElementById('historyBody').innerHTML = `<tr><td colspan="6">Error loading history</td></tr>`;
+            }
         }
     </script>
 </body>
