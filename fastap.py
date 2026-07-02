@@ -8,6 +8,7 @@ import sqlite3
 from datetime import datetime
 import numpy as np
 from contextlib import asynccontextmanager
+
 # --- Global Variables for Models ---
 crop_model = None
 label_encoder = None
@@ -16,28 +17,36 @@ crop_encoder = None
 season_encoder = None
 state_encoder = None
 
-# --- Global Variable for Latest Sensor Data ---
+# --- Global Variable for Latest Data ---
 latest_sensor_data = {}
+latest_prediction = {} # ADDED: Twin page kosam
 
 # --- DB Init ---
 def init_db():
     conn = sqlite3.connect('crop_data.db')
     cursor = conn.cursor()
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS predictions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            N REAL, P REAL, K REAL,
-            temperature REAL, humidity REAL, ph REAL, rainfall REAL,
-            state TEXT, season TEXT,
-            recommended_crop TEXT, predicted_yield REAL
-        )
+    CREATE TABLE IF NOT EXISTS predictions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT,
+        N REAL,
+        P REAL,
+        K REAL,
+        temperature REAL,
+        humidity REAL,
+        ph REAL,
+        rainfall REAL,
+        state TEXT,
+        season TEXT,
+        recommended_crop TEXT,
+        predicted_yield REAL
+    )
     ''')
     conn.commit()
     conn.close()
     print(">>> Database initialized: crop_data.db created <<<")
 
-# --- Lifespan - OKATE SAARI MATRAMAE ---
+# --- Lifespan ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -108,7 +117,6 @@ class SimulationInput(BaseModel):
     current_yield: float
     plant_height: float
 
-# --- NEW: ESP32 Data Model ---
 class SensorData(BaseModel):
     temperature: float
     humidity: float
@@ -125,8 +133,8 @@ def recommend_crop(data: CropInput):
         raise HTTPException(status_code=503, detail="Crop model not loaded")
     try:
         features = np.array([
-            data.N, data.P, data.K,
-            data.temperature, data.humidity, data.ph, data.rainfall
+            data.N, data.P, data.K, data.temperature,
+            data.humidity, data.ph, data.rainfall
         ], dtype=float).reshape(1, -1)
         prediction = crop_model.predict(features)
         crop_name = label_encoder.inverse_transform(prediction)[0]
@@ -134,13 +142,12 @@ def recommend_crop(data: CropInput):
             conn = sqlite3.connect('crop_data.db')
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO predictions (timestamp, N, P, K, temperature, humidity, ph, rainfall, recommended_crop)
-                VALUES (?,?,?,?,?,?,?,?,?)
+            INSERT INTO predictions (timestamp, N, P, K, temperature, humidity, ph, rainfall, recommended_crop)
+            VALUES (?,?,?,?,?,?,?,?,?)
             ''', (
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                data.N, data.P, data.K,
-                data.temperature, data.humidity, data.ph, data.rainfall,
-                crop_name
+                data.N, data.P, data.K, data.temperature, data.humidity,
+                data.ph, data.rainfall, crop_name
             ))
             conn.commit()
             conn.close()
@@ -152,6 +159,7 @@ def recommend_crop(data: CropInput):
 
 @app.post("/predict-yield", tags=["Yield Prediction"])
 def predict_yield(data: YieldInput):
+    global latest_prediction # ADDED: global declare chey
     if yield_model is None:
         raise HTTPException(status_code=503, detail="Yield model not loaded")
     try:
@@ -159,20 +167,35 @@ def predict_yield(data: YieldInput):
         season = season_encoder.transform([data.Season.strip().upper()])[0]
         crop = crop_encoder.transform([data.Crop.strip().capitalize()])[0]
         features = np.array([
-            state, season, crop,
-            data.Area, data.Annual_Rainfall, data.Fertilizer, data.Pesticide
+            state, season, crop, data.Area, data.Annual_Rainfall,
+            data.Fertilizer, data.Pesticide
         ], dtype=float).reshape(1, -1)
         yield_pred = yield_model.predict(features)[0]
+
+        # ADDED: Twin kosam data save chey
+        latest_prediction = {
+            "yield": round(float(yield_pred), 2),
+            "crop": data.Crop,
+            "state": data.State,
+            "season": data.Season,
+            "area": data.Area,
+            "rainfall": data.Annual_Rainfall,
+            "fertilizer": data.Fertilizer,
+            "pesticide": data.Pesticide,
+            "temperature": latest_sensor_data.get("temperature", 25),
+            "humidity": latest_sensor_data.get("humidity", 60),
+            "status": "Healthy" if latest_sensor_data.get("soilMoisture", 0) > 500 else "Weak"
+        }
+
         try:
             conn = sqlite3.connect('crop_data.db')
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO predictions (timestamp, state, season, recommended_crop, predicted_yield)
-                VALUES (?,?,?,?,?)
+            INSERT INTO predictions (timestamp, state, season, recommended_crop, predicted_yield)
+            VALUES (?,?,?,?,?)
             ''', (
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                data.State, data.Season, data.Crop,
-                round(float(yield_pred), 2)
+                data.State, data.Season, data.Crop, round(float(yield_pred), 2)
             ))
             conn.commit()
             conn.close()
@@ -191,7 +214,7 @@ def predict_yield(data: YieldInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Yield prediction failed: {str(e)}")
 
-# --- NEW: ESP32 Routes ---
+# --- ESP32 Routes ---
 @app.post("/api/sensor-data")
 async def receive_sensor_data(data: SensorData):
     global latest_sensor_data
@@ -203,19 +226,24 @@ async def receive_sensor_data(data: SensorData):
 async def get_latest_data():
     return latest_sensor_data
 
+# --- ADDED: Twin Data Route ---
+@app.get("/api/twin-data")
+async def get_twin_data():
+    if not latest_prediction:
+        return {"error": "No prediction data found. Please predict first."}
+    return latest_prediction
+
 # --- HTML Routes ---
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     return templates.TemplateResponse(
-        request=request,
-        name="index.html"
+        request=request, name="index.html"
     )
 
 @app.get("/twin", response_class=HTMLResponse)
 def digital_twin(request: Request):
     return templates.TemplateResponse(
-        request=request,
-        name="twin.html"
+        request=request, name="twin.html"
     )
 
 @app.get("/test")
