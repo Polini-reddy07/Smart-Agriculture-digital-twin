@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Digital Twin - Krishi Sakhi</title>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 0; 
-            padding: 0; 
-            overflow: hidden; 
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
             background: #87CEEB;
         }
         #twin-container {
@@ -77,9 +77,22 @@
         .back-link:hover {
             background: #5568d3;
         }
-        h3 { margin-top: 0; color: #333; }
-        p { margin: 8px 0; }
-        span { font-weight: bold; color: #4CAF50; }
+        h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        p {
+            margin: 8px 0;
+        }
+        span {
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        #warning {
+            color: red;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
     </style>
     <script type="importmap">
         {
@@ -93,6 +106,7 @@
     <div id="twin-container">
         <!-- Crop Details Panel -->
         <div id="crop-details">
+            <div id="warning" style="display:none;"></div>
             <h3>📊 Crop Data</h3>
             <p><b>Crop:</b> <span id="crop-name">Loading...</span></p>
             <p><b>State:</b> <span id="state-name">Loading...</span></p>
@@ -162,9 +176,8 @@
             // Start animation
             animate();
             
-            // Load last prediction from main page
-            loadLastPrediction();
-            loadCropDetails();
+            // Load data from API
+            loadTwinData();
             
             // Handle window resize
             window.addEventListener('resize', onWindowResize);
@@ -233,35 +246,53 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
         
-        // Load last prediction from localStorage
-        function loadLastPrediction() {
-            const savedYield = localStorage.getItem('lastResult');
-            const savedData = localStorage.getItem('lastYield');
-            if (savedYield && savedData) {
-                currentYield = parseFloat(savedYield);
-                baseData = JSON.parse(savedData);
+        // Load data from backend API - MAIN FIX
+        async function loadTwinData() {
+            try {
+                const response = await fetch('/api/twin-data');
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('warning').style.display = 'block';
+                    document.getElementById('warning').innerText = data.error;
+                    return;
+                }
+                
+                // Warning hide chey
+                document.getElementById('warning').style.display = 'none';
+                
+                // Data update chey
+                document.getElementById('crop-name').innerText = data.crop || 'N/A';
+                document.getElementById('state-name').innerText = data.state || 'N/A';
+                document.getElementById('season-name').innerText = data.season || 'N/A';
+                document.getElementById('area-value').innerText = data.area || 'N/A';
+                document.getElementById('base-yield').innerText = data.yield || 'N/A';
+                
+                // Twin info update
+                document.getElementById('yield').innerText = data.yield ? data.yield.toFixed(2) : '0.00';
+                document.getElementById('status').innerText = data.status || 'Unknown';
+                
+                // 3D model update
+                currentYield = data.yield || 3;
                 createPlant(currentYield);
-                console.log('Loaded last prediction:', baseData);
-            } else {
-                console.log('No saved prediction found. Using default values.');
-            }
-        }
-        
-        // Load crop details from localStorage and show in UI
-        function loadCropDetails() {
-            const lastYield = JSON.parse(localStorage.getItem('lastYield'));
-            const lastResult = localStorage.getItem('lastResult');
-            
-            if (lastYield && lastResult) {
-                document.getElementById('crop-name').innerText = lastYield.Crop;
-                document.getElementById('state-name').innerText = lastYield.State;
-                document.getElementById('season-name').innerText = lastYield.Season;
-                document.getElementById('area-value').innerText = lastYield.Area;
-                document.getElementById('base-yield').innerText = lastResult;
-            } else {
-                document.getElementById('crop-details').innerHTML = `
-                    <p style="color:red;">⚠️ Mundhu Home page lo 'Predict Yield' chey bro. Appude data kanipistundi.</p>
-                `;
+                
+                // Base data save for What-If
+                baseData = {
+                    State: data.state,
+                    Season: data.season,
+                    Crop: data.crop,
+                    Area: data.area,
+                    Annual_Rainfall: data.rainfall,
+                    Fertilizer: data.fertilizer,
+                    Pesticide: data.pesticide
+                };
+                
+                console.log('Twin Data Loaded:', data);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('warning').style.display = 'block';
+                document.getElementById('warning').innerText = 'Failed to load data. Server running ledu emo check chey.';
             }
         }
         
@@ -271,10 +302,7 @@
                 alert('First go back and predict yield on main page!');
                 return;
             }
-            const newData = {
-                ...baseData,
-                Annual_Rainfall: baseData.Annual_Rainfall + 200
-            };
+            const newData = { ...baseData, Annual_Rainfall: baseData.Annual_Rainfall + 200 };
             try {
                 const res = await fetch('/predict-yield', {
                     method: 'POST',
@@ -297,10 +325,7 @@
                 alert('First go back and predict yield on main page!');
                 return;
             }
-            const newData = {
-                ...baseData,
-                Fertilizer: baseData.Fertilizer * 0.5 // 50% decrease
-            };
+            const newData = { ...baseData, Fertilizer: baseData.Fertilizer * 0.5 };
             try {
                 const res = await fetch('/predict-yield', {
                     method: 'POST',
@@ -319,14 +344,7 @@
         
         // Reset to original prediction
         function resetTwin() {
-            loadLastPrediction();
-            loadCropDetails();
-            document.getElementById('twin-info').innerHTML = `
-                <b>Current Yield:</b> <span id="yield">${currentYield.toFixed(2)}</span> ton/hectare<br>
-                <b>Plant Status:</b> <span id="status">Weak</span><br>
-                <b>Plant Height:</b> <span id="height">1.50</span>m
-            `;
-            createPlant(currentYield);
+            loadTwinData();
         }
         
         // Make functions global for onclick
