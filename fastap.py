@@ -5,9 +5,12 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import pickle
 import sqlite3
+import os
 from datetime import datetime
 import numpy as np
 from contextlib import asynccontextmanager
+from pathlib import Path
+from urllib.request import Request, urlopen
 
 # --- Global Variables for Models ---
 crop_model = None
@@ -20,6 +23,34 @@ state_encoder = None
 # --- Global Variable for Latest Data ---
 latest_sensor_data = {}
 latest_prediction = {} # ADDED: Twin page kosam
+
+YIELD_MODEL_PATH = Path("yield_model.pkl")
+YIELD_MODEL_URL = os.getenv(
+    "YIELD_MODEL_URL",
+    "https://huggingface.co/Polinireddy/smart-agriculture-yield-model/resolve/main/yield_model.pkl?download=true",
+)
+
+
+def ensure_yield_model():
+    """Download the yield model for deployments where it is not stored locally."""
+    if YIELD_MODEL_PATH.exists():
+        return
+
+    temp_path = YIELD_MODEL_PATH.with_suffix(".pkl.download")
+    try:
+        print("Downloading yield model...")
+        request = Request(YIELD_MODEL_URL, headers={"User-Agent": "smart-agriculture/1.0"})
+        with urlopen(request, timeout=180) as response, open(temp_path, "wb") as model_file:
+            while chunk := response.read(1024 * 1024):
+                model_file.write(chunk)
+
+        if temp_path.stat().st_size < 1024:
+            raise RuntimeError("Downloaded yield model is unexpectedly small")
+        temp_path.replace(YIELD_MODEL_PATH)
+        print("Yield model downloaded successfully")
+    except Exception:
+        temp_path.unlink(missing_ok=True)
+        raise
 
 # --- DB Init ---
 def init_db():
@@ -58,6 +89,7 @@ async def lifespan(app: FastAPI):
         print("1. crop_model done")
         label_encoder = pickle.load(open('label_encoder.pkl', 'rb'))
         print("2. label_encoder done")
+        ensure_yield_model()
         yield_model = pickle.load(open('yield_model.pkl', 'rb'))
         print("3. yield_model done")
         crop_encoder = pickle.load(open('crop_encoder.pkl', 'rb'))
