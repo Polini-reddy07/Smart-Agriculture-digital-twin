@@ -65,10 +65,10 @@ async def lifespan(app: FastAPI):
         season_encoder = pickle.load(open('season_encoder.pkl', 'rb'))
         print("5. season_encoder done")
         state_encoder = pickle.load(open('state_encoder.pkl', 'rb'))
-        print("✅ All 6 models loaded!")
+        print("All 6 models loaded!")
     except Exception as e:
-        print(f"❌ ASALU ERROR: {e}")
-        print(f"❌ ERROR TYPE: {type(e).__name__}")
+        print(f"Model loading error: {e}")
+        print(f"Error type: {type(e).__name__}")
     yield
     # Shutdown
     print("Shutting down...")
