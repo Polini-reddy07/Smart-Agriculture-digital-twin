@@ -10,7 +10,7 @@ from datetime import datetime
 import numpy as np
 from contextlib import asynccontextmanager
 from pathlib import Path
-from urllib.request import Request, urlopen
+from urllib.request import Request as UrlRequest, urlopen
 
 # --- Global Variables for Models ---
 crop_model = None
@@ -39,7 +39,7 @@ def ensure_yield_model():
     temp_path = YIELD_MODEL_PATH.with_suffix(".pkl.download")
     try:
         print("Downloading yield model...")
-        request = Request(YIELD_MODEL_URL, headers={"User-Agent": "smart-agriculture/1.0"})
+        request = UrlRequest(YIELD_MODEL_URL, headers={"User-Agent": "smart-agriculture/1.0"})
         with urlopen(request, timeout=180) as response, open(temp_path, "wb") as model_file:
             while chunk := response.read(1024 * 1024):
                 model_file.write(chunk)
